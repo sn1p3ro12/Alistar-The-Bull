@@ -1,0 +1,117 @@
+if myHero.charName ~= "Alistar" then return end  
+
+local Q = {range = 365}
+local W = {range = 650}
+local E = {range = 575}
+	
+function GetCustomTarget()
+     ts:update()
+     if _G.AutoCarry and ValidTarget(_G.AutoCarry.Crosshair:GetTarget()) then return _G.AutoCarry.Crosshair:GetTarget() end
+     if not _G.Reborn_Loaded then return ts.target end
+     return ts.target
+end    
+
+-- Orbwalker check
+function orbwalkCheck()
+	if _G.AutoCarry then
+		PrintChat("SA:C detected, support enabled.")
+		SACLoaded = true
+	elseif _G.MMA_Loaded then
+		PrintChat("MMA detected, support enabled.")
+		MMALoaded = true
+	else
+		PrintChat("SA:C/MMA not running, loading SxOrbWalk.")
+		require("SxOrbWalk")
+		SxMenu = scriptConfig("SxOrbWalk", "SxOrbb")
+		SxOrb:LoadToMenu(SxMenu)
+		SACLoaded = false
+	end
+end
+
+function OnLoad()
+	ts = TargetSelector(TARGET_LESS_CAST_PRIORITY, W.range, DAMAGE_PHYSICAL, true) 
+  
+    PrintChat("<font color=\"#ff9e00\">[Alistar The Bull]</font> <font color=\"#00ff00\">Don't mess with the Bull or You get the Horns </font>")      
+    menu()
+  
+  	DelayAction(orbwalkCheck,10)
+end
+
+
+function OnTick()
+    QREADY = (myHero:CanUseSpell(_Q) == READY)
+	WREADY = (myHero:CanUseSpell(_W) == READY)
+  	EREADY = (myHero:CanUseSpell(_E) == READY)
+	target = GetCustomTarget()
+  
+  	if settings.combo.comboKey then
+      if QREADY and WREADY then
+          CastW(target)
+      end
+
+      if QREADY then
+           CastQ(target)
+      end
+   	end
+  
+  autoE()
+  autoEAllies()
+end    
+
+function menu()
+	settings = scriptConfig("Alistar", "The Bull")
+	TargetSelector.name = "Alistar"
+	settings:addTS(ts)
+	
+	settings:addSubMenu("[" .. myHero.charName.. "] - Combo", "combo")
+		settings.combo:addParam("comboKey", "Combo Key", SCRIPT_PARAM_ONKEYDOWN, false, 32)
+		settings.combo:permaShow("comboKey")
+  
+  	settings:addSubMenu("[" .. myHero.charName.. "] - Auto Heal", "heal")
+  		settings.heal:addParam("autoE", "Use E automatically", SCRIPT_PARAM_ONOFF, true)
+  		settings.heal:addParam("maxHP", "Use E below my %", SCRIPT_PARAM_SLICE, 40, 0, 100, 0)
+  		settings.heal:addParam("maxHPAlly", "Use E below ally %", SCRIPT_PARAM_SLICE, 40, 0, 100, 0)
+end
+
+function autoE()
+	if settings.heal.autoE then
+		if getHealthPercent(myHero) < settings.heal.maxHP and EREADY then
+			CastSpell(_E)
+		end
+	end
+end
+
+
+function autoEAllies()
+    for i, ally in ipairs(GetAllyHeroes()) do
+        if GetDistance(ally) < E.range and not ally.dead and EREADY and settings.heal.autoE and getHealthPercent(ally) < setting.heal.maxHPAlly then
+            CastSpell(_E)
+        end
+    end
+end
+
+
+function getHealthPercent(unit)
+    local obj = unit or myHero
+    return (obj.health / obj.maxHealth) * 100
+end
+
+function getManaPercent(unit)
+    local obj = unit or myHero
+    return (obj.mana / obj.maxMana) * 100
+end
+
+function CastW(target)
+	if ValidTarget(target) and not target.dead and GetDistance(target) < W.range then
+    	if GetDistance(target) > Q.range then
+      		CastSpell(_W, target)
+      	end
+    end
+end
+
+function CastQ(target) 
+  	if ValidTarget(target) and not target.dead and GetDistance(target) < Q.range then
+      	CastSpell(_Q, target)
+    end
+end
+
